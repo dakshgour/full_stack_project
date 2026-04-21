@@ -1,0 +1,154 @@
+{
+  "info": {
+    "name": "DSA Visualizer API",
+    "_postman_id": "6a162a90-b7a0-4a77-9f78-a9752fcbe9d8",
+    "description": "Exam-ready API collection for auth, code persistence, execution, visualizations, and dashboard endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth Signup",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"demo@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"name\": \"Demo User\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/signup",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "signup"]
+        }
+      }
+    },
+    {
+      "name": "Auth Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"demo@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "Save Code",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Binary Search Demo\",\n  \"code\": \"function binarySearch(arr, target) { return -1; }\",\n  \"language\": \"javascript\",\n  \"dsaPattern\": \"binarySearch\",\n  \"tags\": [\"search\", \"array\"],\n  \"testCases\": [\n    {\n      \"label\": \"Primary input\",\n      \"input\": {\n        \"raw\": \"array: [2,5,8,12,16,23,38] target: 23\"\n      }\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/codes",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "codes"]
+        }
+      }
+    },
+    {
+      "name": "Execute Code",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"function binarySearch(arr, target) { let left = 0; let right = arr.length - 1; while (left <= right) { const mid = left + Math.floor((right - left) / 2); if (arr[mid] === target) return mid; if (arr[mid] < target) left = mid + 1; else right = mid - 1; } return -1; }\",\n  \"language\": \"javascript\",\n  \"inputOverride\": \"array: [2,5,8,12,16,23,38] target: 23\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/execute",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "execute"]
+        }
+      }
+    },
+    {
+      "name": "Save Visualization",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pattern\": \"binarySearch\",\n  \"input\": {\n    \"raw\": \"array: [2,5,8,12,16,23,38] target: 23\"\n  },\n  \"steps\": [\n    {\n      \"title\": \"Set search range\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/visualizations",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "visualizations"]
+        }
+      }
+    },
+    {
+      "name": "Dashboard",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/progress/dashboard",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "progress", "dashboard"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ]
+}
