@@ -12,12 +12,45 @@ import { createExecutionRouter } from './routes/executionRoutes.js';
 import { createProgressRouter } from './routes/progressRoutes.js';
 import { createVisualizationRouter } from './routes/visualizationRoutes.js';
 
+function createCorsOriginMatcher() {
+  const configuredOrigins = String(env.clientOrigin || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  const defaultOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'https://full-stack-project-xi-ten.vercel.app',
+  ];
+
+  const allowedOrigins = new Set([...defaultOrigins, ...configuredOrigins]);
+
+  return (origin, callback) => {
+    // Non-browser requests like curl or health checks may not send an Origin header.
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    const isLocalhost = /^http:\/\/localhost:\d+$/.test(origin);
+    const isVercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
+
+    if (allowedOrigins.has(origin) || isLocalhost || isVercelPreview) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`Origin ${origin} is not allowed by CORS`));
+  };
+}
+
 export function createApp(repositories) {
   const app = express();
 
   // Global middleware
   app.use(securityHeaders);
-  app.use(cors({ origin: env.clientOrigin, credentials: false }));
+  app.use(cors({ origin: createCorsOriginMatcher(), credentials: false }));
   app.use(express.json({ limit: '256kb' }));
   app.use(requestLogger);
   app.use(sanitize);
