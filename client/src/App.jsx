@@ -57,10 +57,13 @@ function AuthProvider({ children }) {
     },
     async signup(payload) {
       const data = await api.signup(payload);
-      window.localStorage.setItem('dsa_token', data.token);
-      setToken(data.token);
-      setUser(data.user);
-      return data.user;
+      // Signup no longer returns a token — returns email for verification
+      return data;
+    },
+    setTokenAndUser(newToken, newUser) {
+      window.localStorage.setItem('dsa_token', newToken);
+      setToken(newToken);
+      setUser(newUser);
     },
     logout() {
       window.localStorage.removeItem('dsa_token');
@@ -112,6 +115,9 @@ function Shell() {
         <Route path="/" element={<VisualizerPage />} />
         <Route path="/login" element={<AuthPage mode="login" />} />
         <Route path="/signup" element={<AuthPage mode="signup" />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       </Routes>
     </div>
@@ -181,10 +187,12 @@ function AuthPage({ mode }) {
       if (isSignup) {
         if (form.name.trim().length < 2) throw new Error('Name must be at least 2 characters');
         await auth.signup(form);
+        // Redirect to verify-email page with email in state
+        navigate('/verify-email', { state: { email: form.email } });
       } else {
         await auth.login({ email: form.email, password: form.password });
+        navigate(location.state?.from || '/dashboard');
       }
-      navigate(location.state?.from || '/dashboard');
     } catch (nextError) {
       setError(nextError.message);
     } finally {
@@ -214,6 +222,198 @@ function AuthPage({ mode }) {
         {error ? <p className="form-error">{error}</p> : null}
         <button className="wide-button" type="submit" disabled={loading}>
           {loading ? 'Working…' : isSignup ? 'Create account' : 'Login'}
+        </button>
+        {!isSignup ? (
+          <p style={{ marginTop: '12px', fontSize: '14px', textAlign: 'center' }}>
+            <Link to="/forgot-password" style={{ color: 'var(--accent, #58a6ff)' }}>Forgot your password?</Link>
+          </p>
+        ) : null}
+      </form>
+    </div>
+  );
+}
+
+function VerifyEmailPage() {
+  const auth = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [otp, setOtp] = useState('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const email = location.state?.email || '';
+
+  // Redirect if no email in state
+  if (!email) return <Navigate to="/signup" replace />;
+
+  async function handleVerify(event) {
+    event.preventDefault();
+    setError('');
+    setMessage('');
+    setLoading(true);
+    try {
+      const data = await api.verifyEmail({ email, otp });
+      auth.setTokenAndUser(data.token, data.user);
+      navigate('/dashboard');
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    setError('');
+    setMessage('');
+    try {
+      await api.resendOtp({ email });
+      setMessage('New OTP sent to your email.');
+    } catch (nextError) {
+      setError(nextError.message);
+    }
+  }
+
+  return (
+    <div className="page-shell auth-page">
+      <form className="auth-card" onSubmit={handleVerify}>
+        <span className="eyebrow">Verify your email</span>
+        <h1>Enter the 6-digit code sent to {email}</h1>
+        <label>
+          <span>Verification Code</span>
+          <input
+            type="text"
+            maxLength={6}
+            value={otp}
+            onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="000000"
+            style={{ letterSpacing: '6px', fontSize: '24px', textAlign: 'center' }}
+          />
+        </label>
+        {error ? <p className="form-error">{error}</p> : null}
+        {message ? <p style={{ color: '#29d765', fontSize: '14px' }}>{message}</p> : null}
+        <button className="wide-button" type="submit" disabled={loading || otp.length !== 6}>
+          {loading ? 'Verifying…' : 'Verify Email'}
+        </button>
+        <p style={{ marginTop: '12px', fontSize: '14px', textAlign: 'center' }}>
+          Didn&apos;t receive the code?{' '}
+          <button type="button" onClick={handleResend} style={{ background: 'none', border: 'none', color: 'var(--accent, #58a6ff)', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: '14px' }}>
+            Resend OTP
+          </button>
+        </p>
+      </form>
+    </div>
+  );
+}
+
+function ForgotPasswordPage() {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await api.forgotPassword({ email });
+      setSent(true);
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="page-shell auth-page">
+        <div className="auth-card">
+          <span className="eyebrow">Check your email</span>
+          <h1>Reset code sent to {email}</h1>
+          <p style={{ color: '#aaa', marginBottom: '16px' }}>If this email is registered, you&apos;ll receive a 6-digit reset code.</p>
+          <button className="wide-button" type="button" onClick={() => navigate('/reset-password', { state: { email } })}>
+            Enter Reset Code
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-shell auth-page">
+      <form className="auth-card" onSubmit={handleSubmit}>
+        <span className="eyebrow">Forgot password</span>
+        <h1>Enter your email to receive a reset code</h1>
+        <label>
+          <span>Email</span>
+          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+        </label>
+        {error ? <p className="form-error">{error}</p> : null}
+        <button className="wide-button" type="submit" disabled={loading}>
+          {loading ? 'Sending…' : 'Send Reset Code'}
+        </button>
+        <p style={{ marginTop: '12px', fontSize: '14px', textAlign: 'center' }}>
+          <Link to="/login" style={{ color: 'var(--accent, #58a6ff)' }}>Back to login</Link>
+        </p>
+      </form>
+    </div>
+  );
+}
+
+function ResetPasswordPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [form, setForm] = useState({
+    email: location.state?.email || '',
+    otp: '',
+    newPassword: '',
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await api.resetPassword(form);
+      navigate('/login', { state: { message: 'Password reset successfully. Please login with your new password.' } });
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="page-shell auth-page">
+      <form className="auth-card" onSubmit={handleSubmit}>
+        <span className="eyebrow">Reset password</span>
+        <h1>Enter the code from your email and your new password</h1>
+        <label>
+          <span>Email</span>
+          <input type="email" value={form.email} onChange={(event) => setForm((v) => ({ ...v, email: event.target.value }))} />
+        </label>
+        <label>
+          <span>Reset Code</span>
+          <input
+            type="text"
+            maxLength={6}
+            value={form.otp}
+            onChange={(event) => setForm((v) => ({ ...v, otp: event.target.value.replace(/\D/g, '').slice(0, 6) }))}
+            placeholder="000000"
+            style={{ letterSpacing: '6px', fontSize: '20px', textAlign: 'center' }}
+          />
+        </label>
+        <label>
+          <span>New Password</span>
+          <input type="password" value={form.newPassword} onChange={(event) => setForm((v) => ({ ...v, newPassword: event.target.value }))} />
+        </label>
+        {error ? <p className="form-error">{error}</p> : null}
+        <button className="wide-button" type="submit" disabled={loading || form.otp.length !== 6}>
+          {loading ? 'Resetting…' : 'Reset Password'}
         </button>
       </form>
     </div>

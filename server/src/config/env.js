@@ -23,6 +23,11 @@ export const env = {
   maxCodeLength: numberFromEnv(process.env.MAX_CODE_LENGTH, 12000),
   maxInputLength: numberFromEnv(process.env.MAX_INPUT_LENGTH, 2000),
   executionTimeoutMs: numberFromEnv(process.env.EXECUTION_TIMEOUT_MS, 2000),
+  smtpHost: process.env.SMTP_HOST || '',
+  smtpPort: numberFromEnv(process.env.SMTP_PORT, 587),
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
+  smtpFrom: process.env.SMTP_FROM || '',
 };
 
 export function isProduction() {

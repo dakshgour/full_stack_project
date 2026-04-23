@@ -21,8 +21,20 @@ export function createMemoryRepositories() {
       return { mode: 'memory' };
     },
     users: {
-      async create({ name, email, passwordHash }) {
-        const user = { id: state.nextIds.users++, name, email, passwordHash, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      async create({ name, email, passwordHash, verificationOtp, otpExpiresAt }) {
+        const user = {
+          id: state.nextIds.users++,
+          name,
+          email,
+          passwordHash,
+          isVerified: false,
+          verificationOtp: verificationOtp || null,
+          otpExpiresAt: otpExpiresAt || null,
+          resetOtp: null,
+          resetOtpExpiresAt: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
         state.users.push(user);
         return clone(user);
       },
@@ -31,6 +43,44 @@ export function createMemoryRepositories() {
       },
       async findById(id) {
         return clone(state.users.find((user) => user.id === Number(id)) || null);
+      },
+      async verifyEmail(email, otp) {
+        const user = state.users.find((u) => u.email === email);
+        if (!user) return null;
+        if (user.verificationOtp !== otp) return null;
+        if (user.otpExpiresAt && new Date(user.otpExpiresAt) < new Date()) return null;
+        user.isVerified = true;
+        user.verificationOtp = null;
+        user.otpExpiresAt = null;
+        user.updatedAt = new Date().toISOString();
+        return clone(user);
+      },
+      async updateOtp(email, otp, expiresAt) {
+        const user = state.users.find((u) => u.email === email);
+        if (!user) return null;
+        user.verificationOtp = otp;
+        user.otpExpiresAt = expiresAt;
+        user.updatedAt = new Date().toISOString();
+        return clone(user);
+      },
+      async updateResetOtp(email, otp, expiresAt) {
+        const user = state.users.find((u) => u.email === email);
+        if (!user) return null;
+        user.resetOtp = otp;
+        user.resetOtpExpiresAt = expiresAt;
+        user.updatedAt = new Date().toISOString();
+        return clone(user);
+      },
+      async resetPassword(email, otp, newPasswordHash) {
+        const user = state.users.find((u) => u.email === email);
+        if (!user) return null;
+        if (user.resetOtp !== otp) return null;
+        if (user.resetOtpExpiresAt && new Date(user.resetOtpExpiresAt) < new Date()) return null;
+        user.passwordHash = newPasswordHash;
+        user.resetOtp = null;
+        user.resetOtpExpiresAt = null;
+        user.updatedAt = new Date().toISOString();
+        return clone(user);
       },
     },
     codes: {

@@ -7,6 +7,11 @@ function mapUser(row) {
     name: row.name,
     email: row.email,
     passwordHash: row.password_hash,
+    isVerified: Boolean(row.is_verified),
+    verificationOtp: row.verification_otp || null,
+    otpExpiresAt: row.otp_expires_at || null,
+    resetOtp: row.reset_otp || null,
+    resetOtpExpiresAt: row.reset_otp_expires_at || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -144,10 +149,10 @@ export function createMySqlRepositories(pool) {
       return { mode: 'mysql' };
     },
     users: {
-      async create({ name, email, passwordHash }) {
+      async create({ name, email, passwordHash, verificationOtp, otpExpiresAt }) {
         const [result] = await pool.execute(
-          'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
-          [name, email, passwordHash],
+          'INSERT INTO users (name, email, password_hash, verification_otp, otp_expires_at) VALUES (?, ?, ?, ?, ?)',
+          [name, email, passwordHash, verificationOtp || null, otpExpiresAt || null],
         );
         return this.findById(Number(result.insertId));
       },
@@ -158,6 +163,42 @@ export function createMySqlRepositories(pool) {
       async findById(id) {
         const [rows] = await pool.execute('SELECT * FROM users WHERE id = ? LIMIT 1', [id]);
         return mapUser(rows[0]);
+      },
+      async verifyEmail(email, otp) {
+        const user = await this.findByEmail(email);
+        if (!user) return null;
+        if (user.verificationOtp !== otp) return null;
+        if (user.otpExpiresAt && new Date(user.otpExpiresAt) < new Date()) return null;
+        await pool.execute(
+          'UPDATE users SET is_verified = TRUE, verification_otp = NULL, otp_expires_at = NULL WHERE email = ?',
+          [email],
+        );
+        return this.findByEmail(email);
+      },
+      async updateOtp(email, otp, expiresAt) {
+        const [result] = await pool.execute(
+          'UPDATE users SET verification_otp = ?, otp_expires_at = ? WHERE email = ?',
+          [otp, expiresAt, email],
+        );
+        return result.affectedRows > 0 ? this.findByEmail(email) : null;
+      },
+      async updateResetOtp(email, otp, expiresAt) {
+        const [result] = await pool.execute(
+          'UPDATE users SET reset_otp = ?, reset_otp_expires_at = ? WHERE email = ?',
+          [otp, expiresAt, email],
+        );
+        return result.affectedRows > 0 ? this.findByEmail(email) : null;
+      },
+      async resetPassword(email, otp, newPasswordHash) {
+        const user = await this.findByEmail(email);
+        if (!user) return null;
+        if (user.resetOtp !== otp) return null;
+        if (user.resetOtpExpiresAt && new Date(user.resetOtpExpiresAt) < new Date()) return null;
+        await pool.execute(
+          'UPDATE users SET password_hash = ?, reset_otp = NULL, reset_otp_expires_at = NULL WHERE email = ?',
+          [newPasswordHash, email],
+        );
+        return this.findByEmail(email);
       },
     },
     codes: codesRepo,

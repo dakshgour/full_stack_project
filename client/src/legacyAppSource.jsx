@@ -258,6 +258,7 @@ const LANGUAGE_OPTIONS = [
   { key: 'javascript', label: 'JavaScript' },
   { key: 'python', label: 'Python' },
   { key: 'cpp', label: 'C++' },
+  { key: 'java', label: 'Java' },
 ];
 
 function labelForLanguage(value) {
@@ -280,6 +281,12 @@ const LANGUAGE_STARTERS = {
     inorder(root->left, result);
     result.push_back(root->val);
     inorder(root->right, result);
+}`,
+    java: `void inorder(TreeNode root, List<Integer> result) {
+    if (root == null) return;
+    inorder(root.left, result);
+    result.add(root.val);
+    inorder(root.right, result);
 }`,
   },
   graph: {
@@ -316,6 +323,24 @@ def bfs(graph, start):
     }
     return order;
 }`,
+    java: `List<Character> bfs(Map<Character, List<Character>> graph, char start) {
+    Set<Character> seen = new HashSet<>();
+    Queue<Character> queue = new LinkedList<>();
+    List<Character> order = new ArrayList<>();
+    seen.add(start);
+    queue.add(start);
+    while (!queue.isEmpty()) {
+        char node = queue.poll();
+        order.add(node);
+        for (char next : graph.get(node)) {
+            if (!seen.contains(next)) {
+                seen.add(next);
+                queue.add(next);
+            }
+        }
+    }
+    return order;
+}`,
   },
   linked: {
     python: `def insert_after(node, value):
@@ -327,6 +352,12 @@ def bfs(graph, start):
     ListNode* fresh = new ListNode(value);
     fresh->next = node->next;
     node->next = fresh;
+    return fresh;
+}`,
+    java: `ListNode insertAfter(ListNode node, int value) {
+    ListNode fresh = new ListNode(value);
+    fresh.next = node.next;
+    node.next = fresh;
     return fresh;
 }`,
   },
@@ -344,6 +375,13 @@ def bfs(graph, start):
     }
     return best;
 }`,
+    java: `int maxValue(int[] items) {
+    int best = items[0];
+    for (int i = 1; i < items.length; i++) {
+        if (items[i] > best) best = items[i];
+    }
+    return best;
+}`,
   },
   stack: {
     python: `stack = []
@@ -357,6 +395,11 @@ st.push("B");
 st.push("C");
 string top = st.top();
 st.pop();`,
+    java: `Stack<String> stack = new Stack<>();
+stack.push("A");
+stack.push("B");
+stack.push("C");
+String top = stack.pop();`,
   },
   queue: {
     python: `from collections import deque
@@ -372,6 +415,11 @@ q.push("B");
 q.push("C");
 string first = q.front();
 q.pop();`,
+    java: `Queue<String> queue = new LinkedList<>();
+queue.add("A");
+queue.add("B");
+queue.add("C");
+String first = queue.poll();`,
   },
   slidingWindow: {
     python: `def max_window_sum(nums, k):
@@ -391,6 +439,16 @@ q.pop();`,
         windowSum += nums[right];
         if (right >= k) windowSum -= nums[right - k];
         if (right >= k - 1) best = max(best, windowSum);
+    }
+    return best;
+}`,
+    java: `int maxWindowSum(int[] nums, int k) {
+    int windowSum = 0;
+    int best = Integer.MIN_VALUE;
+    for (int right = 0; right < nums.length; right++) {
+        windowSum += nums[right];
+        if (right >= k) windowSum -= nums[right - k];
+        if (right >= k - 1) best = Math.max(best, windowSum);
     }
     return best;
 }`,
@@ -418,6 +476,17 @@ q.pop();`,
     }
     return {};
 }`,
+    java: `int[] twoSumSorted(int[] nums, int target) {
+    int left = 0;
+    int right = nums.length - 1;
+    while (left < right) {
+        int sum = nums[left] + nums[right];
+        if (sum == target) return new int[]{left, right};
+        if (sum < target) left++;
+        else right--;
+    }
+    return new int[]{};
+}`,
   },
   binarySearch: {
     python: `def binary_search(arr, target):
@@ -435,6 +504,17 @@ q.pop();`,
     cpp: `int binarySearch(const vector<int>& arr, int target) {
     int left = 0;
     int right = arr.size() - 1;
+    while (left <= right) {
+        int mid = left + (right - left) / 2;
+        if (arr[mid] == target) return mid;
+        if (arr[mid] < target) left = mid + 1;
+        else right = mid - 1;
+    }
+    return -1;
+}`,
+    java: `int binarySearch(int[] arr, int target) {
+    int left = 0;
+    int right = arr.length - 1;
     while (left <= right) {
         int mid = left + (right - left) / 2;
         if (arr[mid] == target) return mid;
@@ -471,6 +551,24 @@ q.pop();`,
             if (!seen.count(next)) {
                 seen.insert(next);
                 st.push(next);
+            }
+        }
+    }
+    return order;
+}`,
+    java: `List<Character> dfs(Map<Character, List<Character>> graph, char start) {
+    Set<Character> seen = new HashSet<>();
+    Stack<Character> stack = new Stack<>();
+    List<Character> order = new ArrayList<>();
+    seen.add(start);
+    stack.push(start);
+    while (!stack.isEmpty()) {
+        char node = stack.pop();
+        order.add(node);
+        for (char next : graph.get(node)) {
+            if (!seen.contains(next)) {
+                seen.add(next);
+                stack.push(next);
             }
         }
     }
@@ -885,16 +983,376 @@ function createBinarySearchSteps(code, override = '') {
   return steps;
 }
 
+function parseKFromCode(code, override = '') {
+  const overrideK = override.match(/k\s*[:=]\s*(\d+)/i);
+  if (overrideK) return Number(overrideK[1]);
+  const kMatch = code.match(/(?:int|let|const|var)\s+k\s*=\s*(\d+)/i) || code.match(/,\s*(\d+)\s*\)/);
+  return kMatch ? Number(kMatch[1]) : 3;
+}
+
+function parseArrayFromOverrideOrCode(code, override = '') {
+  const overrideValues = parseOverrideValues(override);
+  if (overrideValues.values) return { values: overrideValues.values, target: overrideValues.target };
+  const values = parseNumbersFromCode(code);
+  const target = parseTargetFromCode(code, values);
+  return { values, target };
+}
+
+function createSlidingWindowSteps(code, override = '') {
+  const { values } = parseArrayFromOverrideOrCode(code, override);
+  const k = parseKFromCode(code, override);
+  const steps = [];
+  let sum = 0;
+  let best = -Infinity;
+
+  for (let right = 0; right < values.length && steps.length < 15; right++) {
+    sum += values[right];
+    const left = Math.max(0, right - k + 1);
+    if (right >= k) sum -= values[right - k];
+    if (right >= k - 1) best = Math.max(best, sum);
+
+    steps.push({
+      title: right < k ? `Expand window (add ${values[right]})` : `Slide window (add ${values[right]}, drop ${values[right - k]})`,
+      line: findLineNumber(code, right < k ? ['sum +=', 'window_sum +=', 'windowsum +='] : ['sum -=', 'window_sum -=', 'windowsum -='], right + 2),
+      values,
+      left: right >= k - 1 ? left : 0,
+      right,
+      sum,
+      best: best === -Infinity ? sum : best,
+      note: right < k
+        ? `Adding ${values[right]} to build the initial window. Current sum is ${sum}.`
+        : `Window slides: drop ${values[right - k]}, add ${values[right]}. Sum = ${sum}, best = ${best}.`,
+    });
+  }
+
+  steps.push({
+    title: 'Scan complete',
+    line: findLineNumber(code, ['return best', 'return max', 'return result'], values.length + 2),
+    values,
+    left: Math.max(0, values.length - k),
+    right: values.length - 1,
+    sum,
+    best: best === -Infinity ? sum : best,
+    note: `Maximum window sum of size ${k} is ${best === -Infinity ? sum : best}.`,
+  });
+
+  return steps;
+}
+
+function createTwoPointersSteps(code, override = '') {
+  const { values, target: parsedTarget } = parseArrayFromOverrideOrCode(code, override);
+  const sorted = [...values].sort((a, b) => a - b);
+  const target = parsedTarget ?? sorted[0] + sorted[sorted.length - 1];
+  const steps = [];
+  let left = 0;
+  let right = sorted.length - 1;
+
+  steps.push({
+    title: 'Place pointers',
+    line: findLineNumber(code, ['left = 0', 'left=0'], 2),
+    values: sorted, left, right,
+    sum: sorted[left] + sorted[right], target,
+    note: `Start with left at ${sorted[left]} and right at ${sorted[right]}. Target sum is ${target}.`,
+  });
+
+  while (left < right && steps.length < 15) {
+    const currentSum = sorted[left] + sorted[right];
+    if (currentSum === target) {
+      steps.push({
+        title: 'Found target pair',
+        line: findLineNumber(code, ['return', '== target', '=== target'], 6),
+        values: sorted, left, right, sum: currentSum, target,
+        note: `${sorted[left]} + ${sorted[right]} = ${currentSum} equals target ${target}. Pair found!`,
+      });
+      break;
+    } else if (currentSum < target) {
+      left++;
+      steps.push({
+        title: 'Sum too small — move left',
+        line: findLineNumber(code, ['left++', 'left +=', 'left += 1'], 7),
+        values: sorted, left, right, sum: sorted[left] + sorted[right], target,
+        note: `${currentSum} < ${target}, so move left pointer right to ${sorted[left]}.`,
+      });
+    } else {
+      right--;
+      steps.push({
+        title: 'Sum too large — move right',
+        line: findLineNumber(code, ['right--', 'right -=', 'right -= 1'], 8),
+        values: sorted, left, right, sum: sorted[left] + sorted[right], target,
+        note: `${currentSum} > ${target}, so move right pointer left to ${sorted[right]}.`,
+      });
+    }
+  }
+
+  return steps;
+}
+
+function createArraySteps(code, override = '') {
+  const { values } = parseArrayFromOverrideOrCode(code, override);
+  const steps = [];
+  let best = values[0];
+
+  steps.push({
+    title: 'Seed best',
+    line: findLineNumber(code, ['best =', 'max =', 'result ='], 2),
+    values, focus: 0, best,
+    note: `The first item ${values[0]} becomes the starting best value.`,
+  });
+
+  for (let i = 1; i < values.length && steps.length < 15; i++) {
+    const prev = best;
+    best = Math.max(best, values[i]);
+    steps.push({
+      title: `Compare ${values[i]}`,
+      line: findLineNumber(code, ['if (', 'if(', '> best', '> max'], 4),
+      values, focus: i, best,
+      note: values[i] > prev
+        ? `${values[i]} beats ${prev} and becomes the new best.`
+        : `${values[i]} does not change the best value of ${best}.`,
+    });
+  }
+
+  steps.push({
+    title: 'Return result',
+    line: findLineNumber(code, ['return best', 'return max', 'return result'], 6),
+    values, focus: values.length - 1, best,
+    note: `Scan complete. The maximum value is ${best}.`,
+  });
+
+  return steps;
+}
+
+function parseStackOps(code) {
+  const ops = [];
+  const pushMatches = code.matchAll(/\.push\s*\(\s*["']?(\w+)["']?\s*\)/gi);
+  for (const m of pushMatches) ops.push({ type: 'push', value: m[1] });
+  const popMatches = code.matchAll(/\.pop\s*\(\s*\)/gi);
+  for (const m of popMatches) ops.push({ type: 'pop' });
+  const appendMatches = code.matchAll(/\.append\s*\(\s*["']?(\w+)["']?\s*\)/gi);
+  for (const m of appendMatches) ops.push({ type: 'push', value: m[1] });
+  if (!ops.length) return [
+    { type: 'push', value: 'A' }, { type: 'push', value: 'B' },
+    { type: 'push', value: 'C' }, { type: 'pop' },
+  ];
+  return ops;
+}
+
+function createStackSteps(code, override = '') {
+  const ops = parseStackOps(code);
+  const items = [];
+  const steps = [];
+
+  steps.push({
+    title: 'Empty stack',
+    line: findLineNumber(code, ['stack', '= []', 'stack<'], 1),
+    items: [], note: 'A stack starts with no items.',
+  });
+
+  for (const op of ops) {
+    if (op.type === 'push') {
+      items.push(op.value);
+      steps.push({
+        title: `Push ${op.value}`,
+        line: findLineNumber(code, [`.push(${op.value}`, `.push("${op.value}"`, `.push('${op.value}'`, `.append("${op.value}"`], 2),
+        items: [...items], focus: items.length - 1,
+        note: `${op.value} is now at the top of the stack.`,
+      });
+    } else if (op.type === 'pop' && items.length) {
+      const popped = items.pop();
+      steps.push({
+        title: `Pop ${popped}`,
+        line: findLineNumber(code, ['.pop()'], 5),
+        items: [...items], popped,
+        note: `${popped} removed from the top. Last in, first out.`,
+      });
+    }
+  }
+
+  return steps;
+}
+
+function parseQueueOps(code) {
+  const ops = [];
+  const pushMatches = code.matchAll(/\.push\s*\(\s*["']?(\w+)["']?\s*\)/gi);
+  for (const m of pushMatches) ops.push({ type: 'enqueue', value: m[1] });
+  const appendMatches = code.matchAll(/\.append\s*\(\s*["']?(\w+)["']?\s*\)/gi);
+  for (const m of appendMatches) ops.push({ type: 'enqueue', value: m[1] });
+  const shiftMatches = code.matchAll(/\.shift\s*\(\s*\)/gi);
+  for (const m of shiftMatches) ops.push({ type: 'dequeue' });
+  const popleftMatches = code.matchAll(/\.popleft\s*\(\s*\)/gi);
+  for (const m of popleftMatches) ops.push({ type: 'dequeue' });
+  if (!ops.length) return [
+    { type: 'enqueue', value: 'A' }, { type: 'enqueue', value: 'B' },
+    { type: 'enqueue', value: 'C' }, { type: 'dequeue' },
+  ];
+  return ops;
+}
+
+function createQueueSteps(code, override = '') {
+  const ops = parseQueueOps(code);
+  const items = [];
+  const steps = [];
+
+  steps.push({
+    title: 'Empty queue',
+    line: findLineNumber(code, ['queue', '= []', 'deque', 'queue<'], 1),
+    items: [], note: 'A queue starts empty.',
+  });
+
+  for (const op of ops) {
+    if (op.type === 'enqueue') {
+      items.push(op.value);
+      steps.push({
+        title: `Enqueue ${op.value}`,
+        line: findLineNumber(code, [`.push(${op.value}`, `.append(${op.value}`, `.push("${op.value}"`], 2),
+        items: [...items], focus: items.length - 1,
+        note: `${op.value} joins the back of the queue.`,
+      });
+    } else if (op.type === 'dequeue' && items.length) {
+      const removed = items.shift();
+      steps.push({
+        title: `Dequeue ${removed}`,
+        line: findLineNumber(code, ['.shift()', '.popleft()', 'q.pop()', '.front()'], 5),
+        items: [...items], removed,
+        note: `${removed} removed from the front. First in, first out.`,
+      });
+    }
+  }
+
+  return steps;
+}
+
+function parseLinkedListValues(code, override = '') {
+  const overrideMatch = override.match(/nodes?\s*[:=]\s*\[([^\]]+)\]/i);
+  if (overrideMatch) {
+    return overrideMatch[1].split(',').map((v) => v.trim()).filter(Boolean).map(Number).filter(Number.isFinite);
+  }
+  const arrMatch = code.match(/\[([^\]]+)\]/);
+  if (arrMatch) {
+    const vals = arrMatch[1].split(',').map((v) => Number(v.trim())).filter(Number.isFinite);
+    if (vals.length) return vals;
+  }
+  return [4, 8, 15, 23];
+}
+
+function createLinkedListSteps(code, override = '') {
+  const nodes = parseLinkedListValues(code, override);
+  const insertMatch = override.match(/insert\s*[:=]\s*(\d+)/i);
+  const afterMatch = override.match(/after\s*[:=]\s*(\d+)/i);
+  const insertValue = insertMatch ? Number(insertMatch[1]) : 16;
+  const afterValue = afterMatch ? Number(afterMatch[1]) : nodes[1] ?? nodes[0];
+  const insertIndex = nodes.indexOf(afterValue);
+  const focusIdx = insertIndex >= 0 ? insertIndex : 1;
+
+  const steps = [];
+
+  steps.push({
+    title: `Find node ${nodes[focusIdx]}`,
+    line: findLineNumber(code, ['node', 'current', 'find'], 1),
+    nodes: [...nodes], focus: focusIdx,
+    note: `The pointer stops at node ${nodes[focusIdx]}, after which we insert.`,
+  });
+
+  steps.push({
+    title: `Create node ${insertValue}`,
+    line: findLineNumber(code, ['new', 'listnode', 'node('], 2),
+    nodes: [...nodes], fresh: insertValue, focus: focusIdx,
+    note: `A new node with value ${insertValue} is created but not linked yet.`,
+  });
+
+  const newNodes = [...nodes];
+  newNodes.splice(focusIdx + 1, 0, insertValue);
+
+  steps.push({
+    title: `Point new node to ${nodes[focusIdx + 1] ?? 'null'}`,
+    line: findLineNumber(code, ['fresh.next', 'new_node.next', '->next ='], 3),
+    nodes: newNodes, focus: focusIdx + 1, softEdge: `${insertValue}-${nodes[focusIdx + 1] ?? 'null'}`,
+    note: `The new node borrows the old next pointer.`,
+  });
+
+  steps.push({
+    title: `Point ${nodes[focusIdx]} to new node`,
+    line: findLineNumber(code, ['node.next', 'node->next'], 4),
+    nodes: newNodes, focus: focusIdx + 1,
+    note: `Node ${nodes[focusIdx]} now links to ${insertValue}.`,
+  });
+
+  steps.push({
+    title: 'Insertion complete',
+    line: findLineNumber(code, ['return', 'fresh'], 5),
+    nodes: newNodes, focus: focusIdx + 1, done: true,
+    note: `The list stays connected from head to tail: [${newNodes.join(' → ')}].`,
+  });
+
+  return steps;
+}
+
+function createGraphBfsSteps(code, override = '') {
+  const graph = { A: ['B', 'C'], B: ['A', 'C', 'D'], C: ['A', 'B', 'E'], D: ['B', 'F'], E: ['C', 'F'], F: ['D', 'E'] };
+  const start = 'A';
+  const seen = new Set([start]);
+  const queue = [start];
+  const order = [];
+  const edges = [];
+  const steps = [];
+
+  steps.push({
+    title: `Start at ${start}`,
+    line: findLineNumber(code, ['seen', 'visited', 'queue'], 2),
+    current: start, seen: [start], queue: [start], order: [], edges: [],
+    note: `${start} is marked so it will not be processed twice.`,
+  });
+
+  while (queue.length && steps.length < 12) {
+    const node = queue.shift();
+    order.push(node);
+    const newNeighbors = [];
+
+    for (const next of graph[node] || []) {
+      if (!seen.has(next)) {
+        seen.add(next);
+        queue.push(next);
+        edges.push(`${node}-${next}`);
+        newNeighbors.push(next);
+      }
+    }
+
+    steps.push({
+      title: newNeighbors.length ? `Process ${node}, discover ${newNeighbors.join(', ')}` : `Process ${node}`,
+      line: findLineNumber(code, ['queue.shift', 'queue.popleft', 'q.front', 'q.pop'], 6),
+      current: node, seen: [...seen], queue: [...queue], order: [...order], edges: [...edges],
+      note: newNeighbors.length
+        ? `${node} discovers unvisited neighbors: ${newNeighbors.join(', ')}.`
+        : `${node} has no unvisited neighbors.`,
+    });
+  }
+
+  steps.push({
+    title: 'Traversal complete',
+    line: findLineNumber(code, ['return order', 'return result'], 10),
+    current: order[order.length - 1], seen: [...seen], queue: [], order: [...order], edges: [...edges],
+    note: `BFS visit order: ${order.join(' → ')}. Every reachable vertex has been visited.`,
+  });
+
+  return steps;
+}
+
+function createDfsBfsSteps(code, override = '') {
+  return createGraphBfsSteps(code, override);
+}
+
 export function detectCodeTarget(code) {
   const normalized = code.toLowerCase();
   if ((normalized.includes('binarysearch') || normalized.includes('binary_search')) || (normalized.includes('mid') && normalized.includes('left') && normalized.includes('right') && normalized.includes('target'))) return 'binarySearch';
-  if (normalized.includes('bfs') || normalized.includes('popleft') || normalized.includes('queue<') || normalized.includes('graph')) return 'graph';
-  if (normalized.includes('dfs') || normalized.includes('root') || normalized.includes('treenode') || normalized.includes('tree')) return 'tree';
-  if (normalized.includes('next') || normalized.includes('listnode') || normalized.includes('linked') || normalized.includes('->next')) return 'linked';
-  if (normalized.includes('left') && normalized.includes('right')) return 'twoPointers';
-  if (normalized.includes('window') || normalized.includes('right >= k') || normalized.includes('right - k') || normalized.includes('range(len')) return 'slidingWindow';
-  if (normalized.includes('stack') || normalized.includes('.pop') || normalized.includes('st.pop')) return 'stack';
-  if (normalized.includes('shift') || normalized.includes('enqueue') || normalized.includes('q.pop') || normalized.includes('front()')) return 'queue';
+  if (normalized.includes('bfs') || normalized.includes('popleft') || normalized.includes('queue<') || normalized.includes('graph') || normalized.includes('adjacency')) return 'graph';
+  if (normalized.includes('dfs') || normalized.includes('root') || normalized.includes('treenode') || normalized.includes('tree') || normalized.includes('inorder') || normalized.includes('preorder') || normalized.includes('postorder')) return 'tree';
+  if (normalized.includes('next') || normalized.includes('listnode') || normalized.includes('linked') || normalized.includes('->next') || normalized.includes('.next')) return 'linked';
+  if (normalized.includes('left') && normalized.includes('right') && (normalized.includes('two') || normalized.includes('sorted') || normalized.includes('target'))) return 'twoPointers';
+  if (normalized.includes('window') || normalized.includes('right >= k') || normalized.includes('right - k') || normalized.includes('range(len') || normalized.includes('sliding')) return 'slidingWindow';
+  if (normalized.includes('stack') || normalized.includes('st.pop') || normalized.includes('st.push') || normalized.includes('stack<')) return 'stack';
+  if (normalized.includes('shift') || normalized.includes('enqueue') || normalized.includes('q.pop') || normalized.includes('front()') || normalized.includes('deque') || normalized.includes('queue')) return 'queue';
+  // Java-specific detection
+  if (normalized.includes('arraylist') || normalized.includes('hashmap') || normalized.includes('public static void main') || normalized.includes('system.out')) return 'array';
   return 'array';
 }
 
@@ -1016,11 +1474,20 @@ function VisualizerWorkspace({
 
   const visualizeUserCode = () => {
     const nextTarget = detectCodeTarget(customCode);
-    const nextSteps = nextTarget === 'binarySearch'
-      ? createBinarySearchSteps(customCode, inputOverride)
-      : nextTarget === 'tree'
-        ? createTreeTraversalSteps(customCode, inputOverride)
-        : null;
+    const generators = {
+      binarySearch: createBinarySearchSteps,
+      tree: createTreeTraversalSteps,
+      slidingWindow: createSlidingWindowSteps,
+      twoPointers: createTwoPointersSteps,
+      array: createArraySteps,
+      stack: createStackSteps,
+      queue: createQueueSteps,
+      linked: createLinkedListSteps,
+      graph: createGraphBfsSteps,
+      dfsBfs: createDfsBfsSteps,
+    };
+    const generator = generators[nextTarget];
+    const nextSteps = generator ? generator(customCode, inputOverride) : null;
     const firstStep = nextSteps?.[0];
     setAnalysisSteps(nextSteps);
     setAnalysisInfo(buildAnalysisInfo(nextTarget, nextSteps, inputOverride, language));
@@ -1264,9 +1731,9 @@ function CodePane({
 }
 
 function SyntaxLine({ text }) {
-  const tokens = text.split(/(\bfunction\b|\bconst\b|\blet\b|\breturn\b|\bif\b|\bfor\b|\bwhile\b|\bnew\b|\bof\b|\bdef\b|\bclass\b|\bfrom\b|\bimport\b|\bin\b|\bNone\b|\bnullptr\b|\bnull\b|\bSet\b|\bNode\b|\bTreeNode\b|\bListNode\b|\bvector\b|\bqueue\b|\bstack\b|\bunordered_map\b|\bunordered_set\b)/g);
+  const tokens = text.split(/(\bfunction\b|\bconst\b|\blet\b|\breturn\b|\bif\b|\bfor\b|\bwhile\b|\bnew\b|\bof\b|\bdef\b|\bclass\b|\bfrom\b|\bimport\b|\bin\b|\bpublic\b|\bprivate\b|\bstatic\b|\bvoid\b|\bint\b|\bboolean\b|\bchar\b|\bNone\b|\bnullptr\b|\bnull\b|\bSet\b|\bNode\b|\bTreeNode\b|\bListNode\b|\bvector\b|\bqueue\b|\bstack\b|\bunordered_map\b|\bunordered_set\b|\bString\b|\bArrayList\b|\bHashMap\b|\bHashSet\b|\bLinkedList\b|\bInteger\b|\bMath\b|\bQueue\b|\bStack\b|\bMap\b|\bList\b)/g);
   return tokens.map((token, index) => {
-    const cls = /function|const|let|return|if|for|while|new|of|def|class|from|import|in/.test(token) ? 'kw' : /None|nullptr|null|Set|Node|TreeNode|ListNode|vector|queue|stack|unordered_map|unordered_set/.test(token) ? 'type' : '';
+    const cls = /function|const|let|return|if|for|while|new|of|def|class|from|import|in|public|private|static|void|int|boolean|char/.test(token) ? 'kw' : /None|nullptr|null|Set|Node|TreeNode|ListNode|vector|queue|stack|unordered_map|unordered_set|String|ArrayList|HashMap|HashSet|LinkedList|Integer|Math|Queue|Stack|Map|List/.test(token) ? 'type' : '';
     return <span className={cls} key={`${token}-${index}`}>{token}</span>;
   });
 }

@@ -2,7 +2,7 @@ import { env } from '../config/env.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
-const ALLOWED_LANGUAGES = new Set(['javascript', 'python', 'cpp']);
+const ALLOWED_LANGUAGES = new Set(['javascript', 'python', 'cpp', 'java']);
 const FORBIDDEN_PATTERNS = [
   /require\s*\(/i,
   /process\./i,
@@ -30,12 +30,29 @@ export function validateLogin({ email, password }) {
   if (!password) throw new Error('Password is required');
 }
 
+export function validateVerifyEmail({ email, otp }) {
+  if (!EMAIL_REGEX.test(email || '')) throw new Error('Email must be a valid format');
+  if (!otp || typeof otp !== 'string' || otp.length !== 6) throw new Error('OTP must be a 6-digit code');
+}
+
+export function validateForgotPassword({ email }) {
+  if (!EMAIL_REGEX.test(email || '')) throw new Error('Email must be a valid format');
+}
+
+export function validateResetPassword({ email, otp, newPassword }) {
+  if (!EMAIL_REGEX.test(email || '')) throw new Error('Email must be a valid format');
+  if (!otp || typeof otp !== 'string' || otp.length !== 6) throw new Error('OTP must be a 6-digit code');
+  if (!PASSWORD_REGEX.test(newPassword || '')) {
+    throw new Error('Password must be 8+ chars and include uppercase, lowercase, number, and special character');
+  }
+}
+
 export function validateCodePayload(payload) {
   const { title, code, language, dsaPattern } = payload;
   if (!title || typeof title !== 'string' || title.trim().length < 3) throw new Error('Title must be at least 3 characters');
   if (!code || typeof code !== 'string') throw new Error('Code is required');
   if (code.length > env.maxCodeLength) throw new Error('Code payload is too large');
-  if (!ALLOWED_LANGUAGES.has(language)) throw new Error('Language must be javascript, python, or cpp');
+  if (!ALLOWED_LANGUAGES.has(language)) throw new Error('Language must be javascript, python, cpp, or java');
   if (!dsaPattern || typeof dsaPattern !== 'string') throw new Error('dsaPattern is required');
 }
 

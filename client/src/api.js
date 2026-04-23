@@ -19,7 +19,11 @@ async function request(path, { method = 'GET', token, body } = {}) {
 
 export const api = {
   signup: (body) => request('/api/auth/signup', { method: 'POST', body }),
+  verifyEmail: (body) => request('/api/auth/verify-email', { method: 'POST', body }),
+  resendOtp: (body) => request('/api/auth/resend-otp', { method: 'POST', body }),
   login: (body) => request('/api/auth/login', { method: 'POST', body }),
+  forgotPassword: (body) => request('/api/auth/forgot-password', { method: 'POST', body }),
+  resetPassword: (body) => request('/api/auth/reset-password', { method: 'POST', body }),
   me: (token) => request('/api/auth/me', { token }),
   listCodes: (token) => request('/api/codes', { token }),
   getCode: (token, id) => request(`/api/codes/${id}`, { token }),
