@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: dsa-visualizer-api
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CLIENT_ORIGIN
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: MYSQL_URL
+        sync: false
+      - key: MYSQL_HOST
+        sync: false
+      - key: MYSQL_PORT
+        value: 3306
+      - key: MYSQL_USER
+        sync: false
+      - key: MYSQL_PASSWORD
+        sync: false
+      - key: MYSQL_DATABASE
+        value: dsa_visualizer
+      - key: MAX_CODE_LENGTH
+        value: 12000
+      - key: MAX_INPUT_LENGTH
+        value: 2000
+      - key: EXECUTION_TIMEOUT_MS
+        value: 2000
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false

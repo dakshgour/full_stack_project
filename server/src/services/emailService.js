@@ -27,18 +27,25 @@ function getTransporter() {
   return transporter;
 }
 
-async function sendEmail({ to, subject, html }) {
+function consoleDivider() {
+  return '═'.repeat(58);
+}
+
+async function sendEmail({ to, subject, html, otp = null, purpose = 'Email' }) {
   const transport = getTransporter();
 
   if (!transport) {
-    console.log('\n╔══════════════════════════════════════════════════════════╗');
-    console.log('║           📧  EMAIL (Console Fallback Mode)             ║');
-    console.log('╠══════════════════════════════════════════════════════════╣');
-    console.log(`║  To:      ${to.padEnd(46)}║`);
-    console.log(`║  Subject: ${subject.padEnd(46)}║`);
-    console.log('╠══════════════════════════════════════════════════════════╣');
-    console.log(`║  ${html.replace(/<[^>]+>/g, '').slice(0, 54).padEnd(56)}║`);
-    console.log('╚══════════════════════════════════════════════════════════╝\n');
+    const preview = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    console.log(`\n╔${consoleDivider()}╗`);
+    console.log('║           EMAIL (Console Fallback Mode)                ║');
+    console.log(`╠${consoleDivider()}╣`);
+    console.log(`To: ${to}`);
+    console.log(`Subject: ${subject}`);
+    if (otp) {
+      console.log(`${purpose} OTP: ${otp}`);
+    }
+    console.log(`Preview: ${preview.slice(0, 140)}`);
+    console.log(`╚${consoleDivider()}╝\n`);
     return { accepted: [to], mode: 'console' };
   }
 
@@ -56,6 +63,8 @@ export async function sendVerificationEmail(email, otp) {
   return sendEmail({
     to: email,
     subject: 'DSA Visualizer — Verify your email',
+    otp,
+    purpose: 'Verification',
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#1a1a2e;color:#e0e0e0;border-radius:12px;">
         <h2 style="color:#58a6ff;margin:0 0 16px;">Email Verification</h2>
@@ -73,6 +82,8 @@ export async function sendPasswordResetEmail(email, otp) {
   return sendEmail({
     to: email,
     subject: 'DSA Visualizer — Password Reset',
+    otp,
+    purpose: 'Password reset',
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#1a1a2e;color:#e0e0e0;border-radius:12px;">
         <h2 style="color:#ffb86b;margin:0 0 16px;">Password Reset</h2>

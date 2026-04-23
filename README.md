@@ -177,6 +177,42 @@ Deployment checklist:
 4. Set `VITE_API_BASE_URL` on the frontend to the deployed backend URL.
 5. Run `npm run build` locally before shipping.
 
+### Vercel frontend
+
+This repo is a monorepo, so in Vercel import the same GitHub repository and set the project `Root Directory` to `client/`.
+
+- Framework preset: `Vite`
+- Build command: `npm run build`
+- Output directory: `dist`
+- Environment variable: `VITE_API_BASE_URL=https://<your-render-service>.onrender.com`
+
+The file [client/vercel.json](/Users/dakshgour/Desktop/new_fullstackproject/client/vercel.json) is included so client-side routes such as `/dashboard` and `/login` rewrite back to `index.html`.
+
+### Render backend
+
+This repo now includes [render.yaml](/Users/dakshgour/Desktop/new_fullstackproject/render.yaml) for the API service.
+
+- Service type: `Web Service`
+- Root directory: `server/`
+- Build command: `npm install`
+- Start command: `npm start`
+- Health check path: `/api/health`
+
+Required Render environment variables:
+
+- `CLIENT_ORIGIN=https://<your-vercel-project>.vercel.app`
+- `JWT_SECRET=<strong-random-secret>` if you do not use the generated one
+- `MYSQL_URL=<planetscale-or-mysql-connection-string>` or discrete MySQL credentials
+- `SMTP_HOST=smtp.gmail.com`
+- `SMTP_PORT=587`
+- `SMTP_USER=<your-gmail-address>`
+- `SMTP_PASS=<your-google-app-password>`
+- `SMTP_FROM=<your-gmail-address>`
+
+### Gmail SMTP
+
+For real OTP delivery with Gmail, create a Google App Password and use that value as `SMTP_PASS`. For local development, leaving SMTP empty keeps OTP delivery in terminal fallback mode.
+
 ## Demo Credentials
 
 Create a demo user with:
