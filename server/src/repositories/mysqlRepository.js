@@ -1,5 +1,12 @@
 import { safeJsonParse } from '../utils/validation.js';
 
+function toMySqlDateTime(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 function mapUser(row) {
   if (!row) return null;
   return {
@@ -152,7 +159,7 @@ export function createMySqlRepositories(pool) {
       async create({ name, email, passwordHash, verificationOtp, otpExpiresAt }) {
         const [result] = await pool.execute(
           'INSERT INTO users (name, email, password_hash, verification_otp, otp_expires_at) VALUES (?, ?, ?, ?, ?)',
-          [name, email, passwordHash, verificationOtp || null, otpExpiresAt || null],
+          [name, email, passwordHash, verificationOtp || null, toMySqlDateTime(otpExpiresAt)],
         );
         return this.findById(Number(result.insertId));
       },
@@ -178,14 +185,14 @@ export function createMySqlRepositories(pool) {
       async updateOtp(email, otp, expiresAt) {
         const [result] = await pool.execute(
           'UPDATE users SET verification_otp = ?, otp_expires_at = ? WHERE email = ?',
-          [otp, expiresAt, email],
+          [otp, toMySqlDateTime(expiresAt), email],
         );
         return result.affectedRows > 0 ? this.findByEmail(email) : null;
       },
       async updateResetOtp(email, otp, expiresAt) {
         const [result] = await pool.execute(
           'UPDATE users SET reset_otp = ?, reset_otp_expires_at = ? WHERE email = ?',
-          [otp, expiresAt, email],
+          [otp, toMySqlDateTime(expiresAt), email],
         );
         return result.affectedRows > 0 ? this.findByEmail(email) : null;
       },
