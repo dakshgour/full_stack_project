@@ -1,6 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
 
 const STRUCTURES = {
+  userInput: {
+    label: 'User Input',
+    accent: '#ff9e64',
+    description: 'Trace your own Python code with live backend execution and inspect arrays, maps, scalars, and return values step by step.',
+    code: [
+      'def prefix_sum(nums):',
+      '  running = 0',
+      '  prefix = []',
+      '  for value in nums:',
+      '    running += value',
+      '    prefix.append(running)',
+      '  return prefix',
+    ],
+    steps: [
+      {
+        title: 'Ready for custom trace',
+        line: 1,
+        note: 'Paste Python code and input, then visualize it with the User Input tracer.',
+        vars: {},
+        stack: [],
+        listViews: [{ name: 'nums', values: [2, 7, 11, 15] }],
+        scalarEntries: [{ name: 'target', value: 9 }],
+      },
+    ],
+  },
   tree: {
     label: 'Tree',
     accent: '#29d765',
@@ -609,6 +634,10 @@ const SAMPLE_CODES = {
 };
 
 function getStarterCode(target, language) {
+  if (target === 'userInput') {
+    if (language === 'python') return STRUCTURES.userInput.code.join('\n');
+    return '// Use the User Input tab with Python code to trace your own submission.';
+  }
   if (language === 'javascript') return CATALOG[target].code.join('\n');
   return LANGUAGE_STARTERS[target]?.[language] || CATALOG[target].code.join('\n');
 }
@@ -1468,7 +1497,7 @@ function applyRemoteResult({
   setAnalysisInfo(result.analysis || buildAnalysisInfo(nextTarget, nextSteps, inputOverride, language));
   setStep(0);
   setActiveKey(nextTarget);
-  setCustomMessage(`Server execution finished for ${CATALOG[nextTarget].label}.`);
+  setCustomMessage(`Server execution finished for ${CATALOG[nextTarget]?.label || 'User Input'}.`);
 }
 
 function normalizeWorkspace(workspace) {
@@ -1491,16 +1520,16 @@ function VisualizerWorkspace({
   onRemoteExecute,
   onAuthRequest,
 }) {
-  const [activeKey, setActiveKey] = useState('tree');
+  const [activeKey, setActiveKey] = useState('userInput');
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [zoom, setZoom] = useState(1);
-  const [language, setLanguage] = useState('javascript');
-  const [customCode, setCustomCode] = useState(() => getStarterCode('slidingWindow', 'javascript'));
+  const [language, setLanguage] = useState('python');
+  const [customCode, setCustomCode] = useState(() => getStarterCode('userInput', 'python'));
   const [inputOverride, setInputOverride] = useState('');
-  const [title, setTitle] = useState('Sliding Window Demo');
-  const [tagsText, setTagsText] = useState('window, demo');
+  const [title, setTitle] = useState('Python User Input Trace');
+  const [tagsText, setTagsText] = useState('python, trace');
   const [testCaseLabel, setTestCaseLabel] = useState('Primary input');
   const [customMessage, setCustomMessage] = useState('Enter code, choose a language, then visualize the closest DSA pattern.');
   const [analysisSteps, setAnalysisSteps] = useState(null);
@@ -1671,7 +1700,7 @@ function VisualizerWorkspace({
                 setAnalysisInfo(null);
                 setStep(0);
                 setActiveKey(key);
-                setCustomCode(getStarterCode(key, language));
+                setCustomCode(key === 'userInput' && customCode ? customCode : getStarterCode(key, language));
                 setCustomMessage(`${item.label} starter loaded. Edit it or paste your own code.`);
               }}
               type="button"
@@ -1834,6 +1863,7 @@ function SyntaxLine({ text }) {
 
 function Visualizer({ type, step, zoom, accent }) {
   const content = useMemo(() => {
+    if (type === 'userInput') return <UserInputView step={step} />;
     if (type === 'tree') return <TreeView step={step} />;
     if (type === 'graph') return <GraphView step={step} />;
     if (type === 'linked') return <LinkedListView step={step} />;
@@ -1872,6 +1902,55 @@ function ArrayStrip({ values = [], focus }) {
           <small>{index}</small>
         </div>
       ))}
+    </div>
+  );
+}
+
+function UserInputView({ step }) {
+  const listViews = step.listViews || (step.values ? [{ name: step.active || 'values', values: step.values }] : []);
+  const dictViews = step.dictViews || [];
+  const scalarEntries = (step.scalarEntries || []).filter((entry) => !listViews.some((item) => item.name === entry.name));
+
+  return (
+    <div className="array-view">
+      {listViews.length ? listViews.map((view) => (
+        <div key={view.name}>
+          <span className="eyebrow">{view.name}</span>
+          <ArrayStrip values={view.values} focus={step.active === view.name || listViews.length === 1 ? step.focus : undefined} />
+        </div>
+      )) : <p>No array-like state detected yet for this step.</p>}
+
+      {dictViews.length ? dictViews.map((view) => (
+        <div className="debug-card" key={view.name}>
+          <span className="eyebrow">{view.name}</span>
+          <dl>
+            {Object.entries(view.entries || {}).map(([key, value]) => (
+              <div key={key}>
+                <dt>{key}</dt>
+                <dd>{String(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )) : null}
+
+      {scalarEntries.length ? (
+        <div className="metric-row">
+          {scalarEntries.slice(0, 6).map((entry) => (
+            <div className="metric" key={entry.name}>
+              <span>{entry.name}</span>
+              <strong>{String(entry.value)}</strong>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {step.result !== undefined ? (
+        <div className="debug-card">
+          <span className="eyebrow">Return Value</span>
+          <p>{typeof step.result === 'object' ? JSON.stringify(step.result) : String(step.result)}</p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -2195,6 +2274,12 @@ function AnalysisPanel({ analysisInfo, active }) {
           <dt>Mode</dt>
           <dd>{info.mode}</dd>
         </div>
+        {info.inferredPattern ? (
+          <div>
+            <dt>Inferred</dt>
+            <dd>{info.inferredPattern}</dd>
+          </div>
+        ) : null}
       </dl>
     </div>
   );

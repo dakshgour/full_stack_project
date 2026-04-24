@@ -58,15 +58,17 @@ export function executePythonTrace({ code, inputOverride = '', patternDetected }
 
       resolve({
         language: 'python',
-        patternDetected,
+        patternDetected: 'userInput',
+        inferredPattern: patternDetected,
         executionMode: 'python-trace',
         steps: parsed.steps,
         analysis: {
-          pattern: patternDetected,
+          pattern: 'User Input',
           language: 'Python',
           confidence: 'High',
           input: Object.entries(parsed.input || {}).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join(', ') || 'Manual input',
           mode: `Traced ${parsed.entryLabel || parsed.methodName}`,
+          inferredPattern: patternDetected,
         },
         runtime: {
           methodName: parsed.methodName,

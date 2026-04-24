@@ -22,11 +22,37 @@ describe('execution routes', () => {
       });
 
     expect(response.status).toBe(201);
-    expect(response.body.data.result.patternDetected).toBe('array');
+    expect(response.body.data.result.patternDetected).toBe('userInput');
     expect(response.body.data.result.steps.length).toBeGreaterThan(1);
     expect(response.body.data.result.runtime.result).toBe(3);
     expect(response.body.data.result.steps.some((step) => step.vars.ans !== undefined)).toBe(true);
     expect(response.body.data.result.steps.some((step) => step.vars.i !== undefined)).toBe(true);
+  });
+
+  test('python execution traces generic prefix-sum style code', async () => {
+    const { app, repositories } = makeTestApp();
+    const { token } = await registerAndVerify({
+      app,
+      repositories,
+      request,
+      email: 'prefix@example.com',
+      name: 'Prefix User',
+    });
+
+    const response = await request(app)
+      .post('/api/execute')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        code: 'def prefix_sum(nums):\n    running = 0\n    prefix = []\n    for value in nums:\n        running += value\n        prefix.append(running)\n    return prefix\n',
+        language: 'python',
+        inputOverride: 'nums = [1, 2, 3, 4]',
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.result.patternDetected).toBe('userInput');
+    expect(response.body.data.result.runtime.result).toEqual([1, 3, 6, 10]);
+    expect(response.body.data.result.steps.some((step) => Array.isArray(step.listViews) && step.listViews.some((view) => view.name === 'prefix'))).toBe(true);
+    expect(response.body.data.result.steps.some((step) => step.vars.running !== undefined)).toBe(true);
   });
 
   test('restricted code is rejected', async () => {

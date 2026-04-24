@@ -189,6 +189,29 @@ def derive_step_shape(locals_snapshot, stack, lineno, lines, result=None):
         "note": lines[lineno - 1].strip() if 0 < lineno <= len(lines) else "Executing user code.",
     }
 
+    list_views = [
+        {"name": key, "values": value}
+        for key, value in locals_snapshot.items()
+        if isinstance(value, list) and all(isinstance(item, (int, float, bool, type(None), str)) for item in value)
+    ]
+    dict_views = [
+        {"name": key, "entries": value}
+        for key, value in locals_snapshot.items()
+        if isinstance(value, dict)
+    ]
+    scalar_entries = [
+        {"name": key, "value": value}
+        for key, value in locals_snapshot.items()
+        if isinstance(value, (int, float, str, bool)) or value is None
+    ]
+
+    if list_views:
+        step["listViews"] = list_views
+    if dict_views:
+        step["dictViews"] = dict_views
+    if scalar_entries:
+        step["scalarEntries"] = scalar_entries
+
     list_candidates = [
         (key, value)
         for key, value in locals_snapshot.items()
