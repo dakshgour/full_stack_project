@@ -1557,7 +1557,11 @@ function VisualizerWorkspace({
     setCustomMessage(`${sample.label} loaded in ${LANGUAGE_OPTIONS.find((item) => item.key === language)?.label}.`);
   };
 
-  const visualizeUserCode = () => {
+  const visualizeUserCode = async () => {
+    if (language === 'python' && canPersist && onRemoteExecute) {
+      await handleRemoteExecute('visualize');
+      return;
+    }
     const nextTarget = detectCodeTarget(customCode);
     const generators = {
       binarySearch: createBinarySearchSteps,
@@ -1614,7 +1618,7 @@ function VisualizerWorkspace({
     }
   };
 
-  const handleRemoteExecute = async () => {
+  const handleRemoteExecute = async (mode = 'execute') => {
     if (!canPersist) {
       onAuthRequest?.();
       return;
@@ -1639,6 +1643,9 @@ function VisualizerWorkspace({
         setCustomMessage,
         setStep,
       });
+      if (mode === 'visualize') {
+        setCustomMessage('Visualized with live Python trace from the backend.');
+      }
     } catch (error) {
       setCustomMessage(error.message || 'Server execution failed.');
     } finally {
@@ -1787,7 +1794,9 @@ function CodePane({
         <span className="auth-chip">{canPersist ? 'Signed in: save + execute enabled' : 'Demo mode: sign in to save + execute'}</span>
       </div>
       <div className="editor-actions">
-        <button className="primary" type="button" onClick={onVisualize}>Visualize my code</button>
+        <button className="primary" type="button" onClick={onVisualize} disabled={pendingAction === 'execute'}>
+          {pendingAction === 'execute' ? 'Visualizing...' : 'Visualize my code'}
+        </button>
         <button type="button" onClick={onRemoteExecute} disabled={pendingAction === 'execute'}>
           {pendingAction === 'execute' ? 'Executing...' : 'Execute on server'}
         </button>
@@ -1953,10 +1962,12 @@ function ArrayView({ step }) {
   return (
     <div className="array-view">
       <ArrayStrip values={step.values} focus={step.focus} />
-      <div className="metric">
-        <span>best</span>
-        <strong>{step.best}</strong>
-      </div>
+      {step.best !== undefined ? (
+        <div className="metric">
+          <span>{step.bestLabel || 'best'}</span>
+          <strong>{step.best}</strong>
+        </div>
+      ) : null}
       <div className="scan-line">
         {step.values.map((value, index) => (
           <span className={index <= step.focus ? 'visited' : ''} key={`${value}-${index}`} />
@@ -2199,7 +2210,7 @@ function VariableWatch({ step }) {
           {entries.map(([key, value]) => (
             <div key={key}>
               <dt>{key}</dt>
-              <dd>{String(value)}</dd>
+              <dd>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</dd>
             </div>
           ))}
         </dl>

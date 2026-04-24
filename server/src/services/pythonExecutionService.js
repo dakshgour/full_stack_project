@@ -66,10 +66,11 @@ export function executePythonTrace({ code, inputOverride = '', patternDetected }
           language: 'Python',
           confidence: 'High',
           input: Object.entries(parsed.input || {}).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join(', ') || 'Manual input',
-          mode: `Traced Solution.${parsed.methodName}`,
+          mode: `Traced ${parsed.entryLabel || parsed.methodName}`,
         },
         runtime: {
           methodName: parsed.methodName,
+          entryLabel: parsed.entryLabel,
           parameterNames: parsed.parameterNames,
           result: parsed.result,
         },

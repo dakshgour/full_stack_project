@@ -54,25 +54,27 @@ def parse_input_override(raw, parameter_names):
             pass
 
     named = {}
-    pieces = [piece.strip() for piece in text.replace("\n", ",").split(",") if piece.strip()]
-    buffer = []
-    for piece in pieces:
-        if ":" in piece and not buffer:
-            key, value = piece.split(":", 1)
-            named[key.strip()] = value.strip()
+    current_key = None
+    current_value_lines = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
             continue
-        if ":" in piece and buffer:
-            last_key = next(reversed(named))
-            named[last_key] = f"{named[last_key]}, {', '.join(buffer)}"
-            buffer = []
-            key, value = piece.split(":", 1)
-            named[key.strip()] = value.strip()
-            continue
-        buffer.append(piece)
+        delimiter = ":" if ":" in line else "=" if "=" in line else None
+        if delimiter:
+            key, value = line.split(delimiter, 1)
+            key = key.strip()
+            if key in parameter_names:
+                if current_key is not None:
+                    named[current_key] = " ".join(current_value_lines).strip()
+                current_key = key
+                current_value_lines = [value.strip()]
+                continue
+        if current_key is not None:
+            current_value_lines.append(line)
 
-    if buffer and named:
-        last_key = next(reversed(named))
-        named[last_key] = f"{named[last_key]}, {', '.join(buffer)}"
+    if current_key is not None:
+        named[current_key] = " ".join(current_value_lines).strip()
 
     parsed = {}
     for name in parameter_names:
@@ -119,14 +121,18 @@ def sanitize_code(code):
     return "\n".join(sanitized_lines), tree
 
 
-def find_solution_method(tree):
+def find_entrypoint(tree):
     for node in tree.body:
         if isinstance(node, ast.ClassDef) and node.name == "Solution":
             for child in node.body:
                 if isinstance(child, ast.FunctionDef) and child.name != "__init__":
                     params = [arg.arg for arg in child.args.args if arg.arg != "self"]
-                    return child.name, params
-    raise ValueError("Expected a LeetCode-style class Solution with at least one method.")
+                    return {"mode": "class", "callable_name": child.name, "parameter_names": params}
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
+            params = [arg.arg for arg in node.args.args]
+            return {"mode": "function", "callable_name": node.name, "parameter_names": params}
+    raise ValueError("Expected either a LeetCode-style class Solution method or a top-level Python function.")
 
 
 def build_exec_globals():
@@ -204,6 +210,7 @@ def derive_step_shape(locals_snapshot, stack, lineno, lines, result=None):
         for best_name in ("ans", "best", "result", "max_sum", "window_sum"):
             if best_name in locals_snapshot and isinstance(locals_snapshot[best_name], (int, float, str)):
                 step["best"] = locals_snapshot[best_name]
+                step["bestLabel"] = best_name
                 break
 
     if result is not None:
@@ -219,20 +226,29 @@ def main():
     input_override = payload.get("inputOverride", "")
 
     sanitized_code, tree = sanitize_code(code)
-    method_name, parameter_names = find_solution_method(tree)
+    entrypoint = find_entrypoint(tree)
+    method_name = entrypoint["callable_name"]
+    parameter_names = entrypoint["parameter_names"]
     args_by_name = parse_input_override(input_override, parameter_names)
 
     exec_globals = build_exec_globals()
     compiled = compile(sanitized_code, USER_FILENAME, "exec")
     exec(compiled, exec_globals, exec_globals)
 
-    solution_class = exec_globals.get("Solution")
-    if solution_class is None:
-        raise ValueError("Solution class did not load correctly.")
-    solver = solution_class()
-    method = getattr(solver, method_name, None)
-    if method is None:
-        raise ValueError(f"Could not find Solution.{method_name}.")
+    if entrypoint["mode"] == "class":
+        solution_class = exec_globals.get("Solution")
+        if solution_class is None:
+            raise ValueError("Solution class did not load correctly.")
+        solver = solution_class()
+        method = getattr(solver, method_name, None)
+        if method is None:
+            raise ValueError(f"Could not find Solution.{method_name}.")
+        mode_label = f"Solution.{method_name}"
+    else:
+        method = exec_globals.get(method_name)
+        if method is None:
+            raise ValueError(f"Could not find function {method_name}.")
+        mode_label = method_name
 
     missing = [name for name in parameter_names if name not in args_by_name]
     if missing:
@@ -283,6 +299,7 @@ def main():
     response = {
         "methodName": method_name,
         "parameterNames": parameter_names,
+        "entryLabel": mode_label,
         "input": {key: _safe_repr(value) for key, value in args_by_name.items()},
         "result": _safe_repr(result),
         "steps": steps,
