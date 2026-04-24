@@ -1,15 +1,16 @@
 import request from 'supertest';
-import { makeTestApp } from './appTestUtils.js';
+import { makeTestApp, registerAndVerify } from './appTestUtils.js';
 
 describe('progress routes', () => {
   test('dashboard aggregates recent activity', async () => {
-    const { app } = makeTestApp();
-    const signup = await request(app).post('/api/auth/signup').send({
+    const { app, repositories } = makeTestApp();
+    const { token } = await registerAndVerify({
+      app,
+      repositories,
+      request,
       email: 'dash@example.com',
-      password: 'SecurePass123!',
       name: 'Dashboard User',
     });
-    const token = signup.body.data.token;
 
     const createCode = await request(app)
       .post('/api/codes')

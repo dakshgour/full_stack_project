@@ -1,19 +1,16 @@
 import request from 'supertest';
-import { makeTestApp } from './appTestUtils.js';
-
-async function createUserToken(app, email) {
-  const signup = await request(app).post('/api/auth/signup').send({
-    email,
-    password: 'SecurePass123!',
-    name: 'Code Owner',
-  });
-  return signup.body.data.token;
-}
+import { makeTestApp, registerAndVerify } from './appTestUtils.js';
 
 describe('codes routes', () => {
   test('user can create and fetch owned code', async () => {
-    const { app } = makeTestApp();
-    const token = await createUserToken(app, 'owner@example.com');
+    const { app, repositories } = makeTestApp();
+    const { token } = await registerAndVerify({
+      app,
+      repositories,
+      request,
+      email: 'owner@example.com',
+      name: 'Code Owner',
+    });
 
     const create = await request(app)
       .post('/api/codes')
@@ -39,9 +36,21 @@ describe('codes routes', () => {
   });
 
   test('other users cannot read another user code', async () => {
-    const { app } = makeTestApp();
-    const ownerToken = await createUserToken(app, 'owner@example.com');
-    const otherToken = await createUserToken(app, 'other@example.com');
+    const { app, repositories } = makeTestApp();
+    const { token: ownerToken } = await registerAndVerify({
+      app,
+      repositories,
+      request,
+      email: 'owner@example.com',
+      name: 'Code Owner',
+    });
+    const { token: otherToken } = await registerAndVerify({
+      app,
+      repositories,
+      request,
+      email: 'other@example.com',
+      name: 'Other User',
+    });
 
     const create = await request(app)
       .post('/api/codes')

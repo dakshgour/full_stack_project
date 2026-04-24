@@ -1,43 +1,50 @@
 import request from 'supertest';
-import { makeTestApp } from './appTestUtils.js';
+import { makeTestApp, registerAndVerify } from './appTestUtils.js';
 
 describe('execution routes', () => {
-  test('binary search execution returns generated trace', async () => {
-    const { app } = makeTestApp();
-    const signup = await request(app).post('/api/auth/signup').send({
+  test('python execution returns traced local variables', async () => {
+    const { app, repositories } = makeTestApp();
+    const { token } = await registerAndVerify({
+      app,
+      repositories,
+      request,
       email: 'exec@example.com',
-      password: 'SecurePass123!',
       name: 'Executor',
     });
 
     const response = await request(app)
       .post('/api/execute')
-      .set('Authorization', `Bearer ${signup.body.data.token}`)
+      .set('Authorization', `Bearer ${token}`)
       .send({
-        code: 'function binarySearch(arr, target) { let left = 0; let right = arr.length - 1; while (left <= right) { const mid = left + Math.floor((right - left) / 2); if (arr[mid] === target) return mid; if (arr[mid] < target) left = mid + 1; else right = mid - 1; } return -1; }',
-        language: 'javascript',
-        inputOverride: 'array: [2,5,8,12,16,23,38] target: 23',
+        code: 'from typing import List\n\nclass Solution:\n    def maxDistance(self, colors: List[int]) -> int:\n        ans = -1\n        n = len(colors)\n        for i in range(n):\n            for j in range(n):\n                if colors[i] != colors[j]:\n                    ans = max(abs(i - j), ans)\n        return ans\n',
+        language: 'python',
+        inputOverride: 'colors: [1,1,2,3,1]',
       });
 
     expect(response.status).toBe(201);
-    expect(response.body.data.result.patternDetected).toBe('binarySearch');
+    expect(response.body.data.result.patternDetected).toBe('array');
     expect(response.body.data.result.steps.length).toBeGreaterThan(1);
+    expect(response.body.data.result.runtime.result).toBe(3);
+    expect(response.body.data.result.steps.some((step) => step.vars.ans !== undefined)).toBe(true);
+    expect(response.body.data.result.steps.some((step) => step.vars.i !== undefined)).toBe(true);
   });
 
   test('restricted code is rejected', async () => {
-    const { app } = makeTestApp();
-    const signup = await request(app).post('/api/auth/signup').send({
-      email: 'exec@example.com',
-      password: 'SecurePass123!',
+    const { app, repositories } = makeTestApp();
+    const { token } = await registerAndVerify({
+      app,
+      repositories,
+      request,
+      email: 'blocked@example.com',
       name: 'Executor',
     });
 
     const response = await request(app)
       .post('/api/execute')
-      .set('Authorization', `Bearer ${signup.body.data.token}`)
+      .set('Authorization', `Bearer ${token}`)
       .send({
-        code: 'const fs = require(\"fs\");',
-        language: 'javascript',
+        code: 'import os\n\nclass Solution:\n    def run(self, nums):\n        return len(nums)\n',
+        language: 'python',
         inputOverride: '',
       });
 

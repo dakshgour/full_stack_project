@@ -1,4 +1,5 @@
-import { executeVisualization } from '../services/traceService.js';
+import { executePythonTrace } from '../services/pythonExecutionService.js';
+import { detectCodeTarget, executeVisualization } from '../services/traceService.js';
 import { fail, ok } from '../utils/response.js';
 import { validateExecutionPayload } from '../utils/validation.js';
 
@@ -7,7 +8,14 @@ export function createExecutionController(repositories) {
     async execute(req, res, next) {
       try {
         validateExecutionPayload(req.body);
-        const result = executeVisualization(req.body);
+        const patternDetected = detectCodeTarget(req.body.code || '');
+        const result = req.body.language === 'python'
+          ? await executePythonTrace({
+            code: req.body.code,
+            inputOverride: req.body.inputOverride || '',
+            patternDetected,
+          })
+          : executeVisualization(req.body);
         const execution = await repositories.executions.create(req.user.id, {
           savedCodeId: req.body.savedCodeId ?? null,
           language: req.body.language,

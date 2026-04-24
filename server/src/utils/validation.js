@@ -9,9 +9,17 @@ const FORBIDDEN_PATTERNS = [
   /fs\./i,
   /child_process/i,
   /subprocess/i,
+  /import\s+os/i,
+  /import\s+sys/i,
+  /import\s+pathlib/i,
+  /import\s+socket/i,
+  /import\s+shutil/i,
   /system\s*\(/i,
   /exec\s*\(/i,
   /spawn\s*\(/i,
+  /eval\s*\(/i,
+  /open\s*\(/i,
+  /__import__/i,
   /while\s*\(\s*true\s*\)/i,
 ];
 

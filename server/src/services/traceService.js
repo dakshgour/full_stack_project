@@ -27,7 +27,7 @@ function findLineNumber(code, patterns, fallback) {
   return index >= 0 ? index + 1 : fallback;
 }
 
-function detectCodeTarget(code) {
+export function detectCodeTarget(code) {
   const normalized = code.toLowerCase();
   if ((normalized.includes('binarysearch') || normalized.includes('binary_search')) || (normalized.includes('mid') && normalized.includes('left') && normalized.includes('right') && normalized.includes('target'))) return 'binarySearch';
   if (normalized.includes('bfs') || normalized.includes('popleft') || normalized.includes('queue<') || normalized.includes('graph') || normalized.includes('adjacency')) return 'graph';

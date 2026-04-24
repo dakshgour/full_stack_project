@@ -33,6 +33,30 @@ The backend intentionally does **not** run arbitrary code. For the exam MVP it:
 - generates structured traces for `binarySearch` and `tree`
 - returns standardized demo traces for the remaining supported patterns
 
+### Python LeetCode tracing
+
+The backend now supports a Python-only traced execution path for LeetCode-style submissions that look like:
+
+```python
+class Solution:
+    def maxDistance(self, colors):
+        ...
+```
+
+The tracer:
+
+- instantiates `Solution`
+- detects the first method on the class
+- maps test input by parameter name, such as `colors: [1,1,2,3,1]`
+- records real per-line locals and call stack frames
+- returns those steps to the existing frontend visualizer
+
+Current limitations:
+
+- only Python uses real traced execution right now
+- imports are restricted to `typing`, `collections`, and `math`
+- the safest input format is named arguments like `colors: [1,2,3]` or a Python dictionary literal
+
 ## Local Setup
 
 ### 1. Install dependencies
