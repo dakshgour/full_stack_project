@@ -636,7 +636,7 @@ function parseTargetFromCode(code, values) {
 }
 
 function parseOverrideValues(input) {
-  const arrayMatch = input.match(/(?:array|arr|nums|data|tree)\s*[:=]\s*\[?([^\]\n]+)\]?/i) || input.match(/\[([^\]]+)\]/);
+  const arrayMatch = input.match(/(?:array|arr|nums|data|tree|colors|items|houses)\s*[:=]\s*\[?([^\]\n]+)\]?/i) || input.match(/\[([^\]]+)\]/);
   const targetMatch = input.match(/target\s*[:=]\s*(-?\d+)/i);
   const values = arrayMatch
     ? arrayMatch[1]
@@ -1088,6 +1088,91 @@ function createTwoPointersSteps(code, override = '') {
 }
 
 function createArraySteps(code, override = '') {
+  const normalized = code.toLowerCase();
+  const looksLikeMaxDistance =
+    (normalized.includes('maxdistance') || normalized.includes('max_distance'))
+    || (normalized.includes('colors[') && normalized.includes('abs(') && normalized.includes('!='));
+
+  if (looksLikeMaxDistance) {
+    const { values } = parseArrayFromOverrideOrCode(code, override);
+    const initLine = findLineNumber(code, ['ans=', 'ans =', 'int ans', 'n =', 'size()'], 2);
+    const outerLoopLine = findLineNumber(code, ['for(int i', 'for (int i', 'for i in range'], 4);
+    const innerLoopLine = findLineNumber(code, ['for(int j', 'for (int j', 'for j in range'], 5);
+    const compareLine = findLineNumber(code, ['colors[i]!=colors[j]', 'colors[i] != colors[j]', 'colors[i] != colors[j]'], 6);
+    const updateLine = findLineNumber(code, ['ans=max(abs(i-j),ans)', 'ans = max(abs(i - j), ans)', 'ans = max(abs(i-j), ans)'], 7);
+    const returnLine = findLineNumber(code, ['return ans'], 9);
+    const steps = [];
+    let best = Number.NEGATIVE_INFINITY;
+
+    steps.push({
+      title: 'Initialize ans and n',
+      line: initLine,
+      values,
+      focus: 0,
+      best: '-inf',
+      vars: { ans: 'INT_MIN', n: values.length },
+      note: `Set ans to INT_MIN and n to ${values.length} before scanning every pair.`,
+    });
+
+    for (let i = 0; i < values.length && steps.length < 14; i++) {
+      steps.push({
+        title: `Outer loop i = ${i}`,
+        line: outerLoopLine,
+        values,
+        focus: i,
+        best: best === Number.NEGATIVE_INFINITY ? '-inf' : best,
+        vars: { i, ans: best === Number.NEGATIVE_INFINITY ? 'INT_MIN' : best },
+        note: `Start checking all j positions against colors[${i}] = ${values[i]}.`,
+      });
+
+      for (let j = 0; j < values.length && steps.length < 14; j++) {
+        const distance = Math.abs(i - j);
+        const different = values[i] !== values[j];
+
+        if (!different && i === 0 && j === 0) {
+          steps.push({
+            title: 'Skip equal colors',
+            line: compareLine,
+            values,
+            focus: j,
+            best: best === Number.NEGATIVE_INFINITY ? '-inf' : best,
+            vars: { i, j, 'colors[i]': values[i], 'colors[j]': values[j], ans: best === Number.NEGATIVE_INFINITY ? 'INT_MIN' : best },
+            note: `colors[${i}] and colors[${j}] are both ${values[i]}, so ans does not change.`,
+          });
+          continue;
+        }
+
+        if (!different) continue;
+
+        const nextBest = Math.max(best, distance);
+        steps.push({
+          title: nextBest > best ? `Update ans with (${i}, ${j})` : `Check pair (${i}, ${j})`,
+          line: nextBest > best ? updateLine : compareLine,
+          values,
+          focus: j,
+          best: nextBest,
+          vars: { i, j, 'colors[i]': values[i], 'colors[j]': values[j], distance, ans: nextBest },
+          note: nextBest > best
+            ? `colors[${i}] = ${values[i]} and colors[${j}] = ${values[j]} differ, so ans becomes max(${distance}, ${best === Number.NEGATIVE_INFINITY ? 'INT_MIN' : best}) = ${nextBest}.`
+            : `The colors differ, but distance ${distance} does not beat the current ans ${best}.`,
+        });
+        best = nextBest;
+      }
+    }
+
+    steps.push({
+      title: 'Return result',
+      line: returnLine,
+      values,
+      focus: null,
+      best,
+      vars: { ans: best },
+      note: `The farthest pair of different colors is ${best}.`,
+    });
+
+    return steps;
+  }
+
   const { values } = parseArrayFromOverrideOrCode(code, override);
   const steps = [];
   let best = values[0];
