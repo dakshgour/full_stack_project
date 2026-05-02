@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { api } from './api.js';
 import VisualizerWorkspace, { detectCodeTarget } from './legacyAppSource.jsx';
+import PlaygroundPage from './PlaygroundPage.jsx';
 
 const AuthContext = createContext(null);
 
@@ -96,6 +97,7 @@ function Shell() {
         </div>
         <nav>
           <Link to="/">Visualizer</Link>
+          <Link to="/playground">🐍 Playground</Link>
           <Link to="/dashboard">Dashboard</Link>
           {auth.authenticated ? (
             <>
@@ -113,6 +115,7 @@ function Shell() {
 
       <Routes>
         <Route path="/" element={<VisualizerPage />} />
+        <Route path="/playground" element={<PlaygroundPage />} />
         <Route path="/login" element={<AuthPage mode="login" />} />
         <Route path="/signup" element={<AuthPage mode="signup" />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />

@@ -11,6 +11,7 @@ import { createCodeRouter } from './routes/codeRoutes.js';
 import { createExecutionRouter } from './routes/executionRoutes.js';
 import { createProgressRouter } from './routes/progressRoutes.js';
 import { createVisualizationRouter } from './routes/visualizationRoutes.js';
+import { createPlaygroundRouter } from './routes/playgroundRoutes.js';
 
 function createCorsOriginMatcher() {
   const configuredOrigins = String(env.clientOrigin || '')
@@ -67,6 +68,7 @@ export function createApp(repositories) {
   app.use('/api/execute', generalLimiter, createExecutionRouter(repositories));
   app.use('/api/visualizations', generalLimiter, createVisualizationRouter(repositories));
   app.use('/api/progress', generalLimiter, createProgressRouter(repositories));
+  app.use('/api/playground', generalLimiter, createPlaygroundRouter());
 
   // Error handling
   app.use(notFoundHandler);

@@ -33,4 +33,6 @@ export const api = {
   executeCode: (token, body) => request('/api/execute', { method: 'POST', token, body }),
   saveVisualization: (token, body) => request('/api/visualizations', { method: 'POST', token, body }),
   getDashboard: (token) => request('/api/progress/dashboard', { token }),
+  // Public playground — no auth required
+  playgroundTrace: (body) => request('/api/playground/trace', { method: 'POST', body }),
 };

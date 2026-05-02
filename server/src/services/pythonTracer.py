@@ -1,13 +1,17 @@
 import ast
+import bisect
+import functools
+import heapq
+import itertools
 import json
 import math
 import sys
-from collections import Counter, defaultdict, deque
-from typing import Deque, Dict, List, Optional, Set, Tuple
+from collections import Counter, OrderedDict, defaultdict, deque
+from typing import Any, Deque, Dict, List, Optional, Set, Tuple
 
-MAX_STEPS = 200
+MAX_STEPS = 500
 USER_FILENAME = "<user_code>"
-ALLOWED_IMPORTS = {"typing", "collections", "math"}
+ALLOWED_IMPORTS = {"typing", "collections", "math", "heapq", "bisect", "functools", "itertools", "string"}
 
 
 def _safe_repr(value):
@@ -135,48 +139,93 @@ def find_entrypoint(tree):
     raise ValueError("Expected either a LeetCode-style class Solution method or a top-level Python function.")
 
 
+def _safe_print(*args, **kwargs):
+    # redirect print to stderr so it doesn't pollute stdout JSON
+    print(*args, file=sys.stderr, **kwargs)
+
+
 def build_exec_globals():
     safe_builtins = {
         "__build_class__": __build_class__,
+        "ArithmeticError": ArithmeticError,
         "Exception": Exception,
+        "IndexError": IndexError,
+        "KeyError": KeyError,
+        "StopIteration": StopIteration,
+        "TypeError": TypeError,
+        "ValueError": ValueError,
+        "ZeroDivisionError": ZeroDivisionError,
         "abs": abs,
         "all": all,
         "any": any,
+        "bin": bin,
         "bool": bool,
+        "callable": callable,
+        "chr": chr,
         "dict": dict,
+        "divmod": divmod,
         "enumerate": enumerate,
         "filter": filter,
         "float": float,
+        "format": format,
+        "frozenset": frozenset,
+        "getattr": getattr,
+        "hasattr": hasattr,
+        "hash": hash,
+        "hex": hex,
+        "id": id,
         "int": int,
         "isinstance": isinstance,
+        "issubclass": issubclass,
+        "iter": iter,
         "len": len,
         "list": list,
         "map": map,
         "max": max,
         "min": min,
+        "next": next,
         "object": object,
+        "oct": oct,
+        "ord": ord,
+        "pow": pow,
+        "print": _safe_print,
         "range": range,
+        "repr": repr,
         "reversed": reversed,
+        "round": round,
         "set": set,
+        "setattr": setattr,
+        "slice": slice,
         "sorted": sorted,
         "str": str,
         "sum": sum,
         "tuple": tuple,
+        "type": type,
+        "vars": vars,
         "zip": zip,
     }
     return {
         "__builtins__": safe_builtins,
         "__name__": "__main__",
+        # typing
+        "Any": Any,
         "List": List,
         "Optional": Optional,
         "Tuple": Tuple,
         "Dict": Dict,
         "Set": Set,
         "Deque": Deque,
+        # collections
         "deque": deque,
         "defaultdict": defaultdict,
         "Counter": Counter,
+        "OrderedDict": OrderedDict,
+        # stdlib modules
         "math": math,
+        "heapq": heapq,
+        "bisect": bisect,
+        "functools": functools,
+        "itertools": itertools,
     }
 
 
