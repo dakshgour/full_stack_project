@@ -394,6 +394,7 @@ export default function PlaygroundPage() {
   const [error, setError] = useState('');
   const [steps, setSteps] = useState([]);
   const [runtime, setRuntime] = useState(null);
+  const [usedDefaults, setUsedDefaults] = useState({});
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -403,17 +404,19 @@ export default function PlaygroundPage() {
   function loadExample(ex) {
     setCode(ex.code); setInput(ex.input);
     setStatus('idle'); setError(''); setSteps([]); setRuntime(null);
+    setUsedDefaults({});
     setIdx(0); setPlaying(false);
   }
 
   async function handleTrace() {
     clearInterval(timerRef.current);
-    setStatus('loading'); setError(''); setSteps([]); setRuntime(null); setIdx(0); setPlaying(false);
+    setStatus('loading'); setError(''); setSteps([]); setRuntime(null); setUsedDefaults({}); setIdx(0); setPlaying(false);
     try {
       const res = await api.playgroundTrace({ code, inputOverride: input });
       const s = res.steps || [];
       setSteps(s);
       setRuntime(res.runtime || null);
+      setUsedDefaults(res.runtime?.usedDefaults || {});
       setVizMode(detectVizMode(s));
       setStatus(s.length ? 'done' : 'empty');
     } catch (e) {
@@ -499,6 +502,14 @@ export default function PlaygroundPage() {
           </button>
           {status === 'error' && <div className="pgv-err"><b>⚠ Error</b><pre>{error}</pre></div>}
           {status === 'empty' && <div className="pgv-warn"><b>No steps captured.</b> Make sure your function is callable with the provided input.</div>}
+          {Object.keys(usedDefaults).length > 0 && status === 'done' && (
+            <div className="pgv-info">
+              ℹ️ No input matched — ran with smart defaults:<br />
+              {Object.entries(usedDefaults).map(([k, v]) => (
+                <code key={k}>{k} = {v}</code>
+              ))}
+            </div>
+          )}
 
           {/* Minimap — code viewer while tracing */}
           {status === 'done' && steps.length > 0 && (

@@ -1146,3 +1146,6 @@ svg line {
 .pgv-speed-btn.active, .pgv-speed-btn:hover { background: rgba(255,158,100,0.12); border-color: rgba(255,158,100,0.4); color: #ff9e64; }
 @media (max-width: 1000px) { .pgv-body { grid-template-columns: 1fr; } .pgv-topbar { flex-direction: column; align-items: flex-start; } }
 @media (max-width: 600px) { .pgv-page { padding: 14px 12px 40px; } .pgv-canvas { padding: 14px; } }
+
+.pgv-info { border: 1px solid rgba(88,166,255,0.35); background: rgba(88,166,255,0.07); border-radius: 10px; padding: 11px 14px; font-size: 13px; margin-bottom: 12px; color: #79c0ff; line-height: 1.7; }
+.pgv-info code { background: #141820; border: 1px solid #1e2a38; border-radius: 4px; padding: 1px 7px; margin: 2px 3px; display: inline-block; color: #a5d6ff; font-family: monospace; font-size: 12px; }

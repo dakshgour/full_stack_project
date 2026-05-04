@@ -34,6 +34,7 @@ def _safe_repr(value):
     return repr(value)
 
 
+
 def _normalize_literal_text(text):
     return (
         text.replace("null", "None")
@@ -46,60 +47,168 @@ def _parse_literal(value):
     return ast.literal_eval(_normalize_literal_text(value))
 
 
-def parse_input_override(raw, parameter_names):
-    text = (raw or "").strip()
-    if not text:
-        return {}
+# Sensible defaults keyed by common parameter names.
+# Used as a last resort so simple code (factorial, fib, etc.) always runs.
+PARAM_DEFAULTS = {
+    # integers
+    "n": 6, "num": 6, "number": 6, "x": 5, "val": 5, "k": 3,
+    "target": 9, "t": 5, "limit": 10, "m": 3, "p": 2, "q": 3,
+    # arrays
+    "nums": [2, 7, 11, 15], "arr": [2, 7, 11, 15], "array": [1, 2, 3, 4, 5],
+    "prices": [7, 1, 5, 3, 6, 4], "heights": [2, 1, 5, 6, 2, 3],
+    "coins": [1, 5, 10, 25], "weights": [1, 2, 3, 4, 5],
+    # strings
+    "s": "hello", "string": "abcba", "t": "world", "word": "level",
+    "str": "racecar", "pattern": "abc", "text": "hello world",
+    # lists of strings
+    "strs": ["eat", "tea", "tan", "ate", "nat", "bat"],
+    "words": ["hello", "world"],
+    # 2-D
+    "matrix": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+    "grid": [[1, 0], [0, 1]],
+    # linked-list / tree (None → caller handles separately)
+    "head": None, "root": None,
+}
 
+
+def _infer_default(name):
+    """Return a sensible default for an unknown parameter name."""
+    low = name.lower()
+    if low in PARAM_DEFAULTS:
+        return PARAM_DEFAULTS[low]
+    # heuristics
+    if any(low.endswith(s) for s in ("nums", "arr", "list", "array", "values", "items")):
+        return [1, 2, 3, 4, 5]
+    if any(low.endswith(s) for s in ("str", "string", "word", "text", "s")):
+        return "hello"
+    if any(low.endswith(s) for s in ("map", "dict", "graph", "adj")):
+        return {}
+    # default: small integer
+    return 5
+
+
+def parse_input_override(raw, parameter_names):
+    """Parse user-supplied input with 5 progressive fallback tiers."""
+    text = (raw or "").strip()
+
+    # ── Tier 0: no input at all → smart defaults ──────────────────────────
+    if not text:
+        return {name: _infer_default(name) for name in parameter_names}
+
+    # ── Tier 1: single param, try the whole text as a literal ─────────────
     if len(parameter_names) == 1:
         try:
             return {parameter_names[0]: _parse_literal(text)}
         except Exception:
             pass
 
-    named = {}
+    # ── Tier 2: exact named matching  (key = value  or  key: value) ───────
+    named_raw = {}            # name → raw string fragment
     current_key = None
-    current_value_lines = []
+    current_frags = []
     for raw_line in text.splitlines():
         line = raw_line.strip()
         if not line:
             continue
-        delimiter = ":" if ":" in line else "=" if "=" in line else None
-        if delimiter:
-            key, value = line.split(delimiter, 1)
-            key = key.strip()
-            if key in parameter_names:
-                if current_key is not None:
-                    named[current_key] = " ".join(current_value_lines).strip()
-                current_key = key
-                current_value_lines = [value.strip()]
-                continue
-        if current_key is not None:
-            current_value_lines.append(line)
-
+        for delim in ("=", ":"):
+            if delim in line:
+                key, _, val_part = line.partition(delim)
+                key = key.strip()
+                # only accept if this key matches a parameter exactly
+                if key in parameter_names:
+                    if current_key is not None:
+                        named_raw[current_key] = " ".join(current_frags).strip()
+                    current_key = key
+                    current_frags = [val_part.strip()]
+                    break
+        else:
+            if current_key is not None:
+                current_frags.append(line)
     if current_key is not None:
-        named[current_key] = " ".join(current_value_lines).strip()
+        named_raw[current_key] = " ".join(current_frags).strip()
 
     parsed = {}
     for name in parameter_names:
-        if name in named:
-            parsed[name] = _parse_literal(named[name])
-
-    if parsed:
+        if name in named_raw:
+            try:
+                parsed[name] = _parse_literal(named_raw[name])
+            except Exception:
+                pass
+    if len(parsed) == len(parameter_names):
         return parsed
 
+    # ── Tier 3: fuzzy / prefix matching (type-aware) ────────────────────
+    # Only matches param↔key when their pluralisation differs by one "s"
+    # AND the parsed value is type-compatible with the parameter name.
+    all_kvs = {}   # raw key → raw value from the input text
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        for delim in ("=", ":"):
+            if delim in line:
+                k, _, v = line.partition(delim)
+                all_kvs[k.strip()] = v.strip()
+                break
+
+    _SCALAR_PARAMS = {"num", "n", "k", "target", "t", "x", "val", "limit",
+                      "m", "p", "q", "count", "size", "index", "start", "end"}
+    _LIST_PARAMS   = {"nums", "arr", "array", "items", "values", "prices",
+                      "heights", "coins", "weights", "strs", "words"}
+
+    def _type_ok(pname, value):
+        low = pname.lower()
+        if low in _SCALAR_PARAMS and isinstance(value, list):
+            return False
+        if low in _LIST_PARAMS and isinstance(value, (int, float)):
+            return False
+        return True
+
+    fuzzy = dict(parsed)  # start from what tier-2 found
+    for pname in parameter_names:
+        if pname in fuzzy:
+            continue
+        for raw_key, raw_val in all_kvs.items():
+            lk, lp = raw_key.lower(), pname.lower()
+            # Only match if they differ by exactly one trailing "s"
+            name_match = (
+                (lk == lp)
+                or (lk == lp + "s")
+                or (lp == lk + "s")
+            )
+            if not name_match:
+                continue
+            try:
+                candidate = _parse_literal(raw_val)
+                if _type_ok(pname, candidate):
+                    fuzzy[pname] = candidate
+                    break
+            except Exception:
+                pass
+    if len(fuzzy) == len(parameter_names):
+        return fuzzy
+
+    # ── Tier 4: whole-text positional literal  e.g. "[1,2,3], 9" ─────────
     try:
         payload = _parse_literal(text)
         if isinstance(payload, dict):
-            return {key: value for key, value in payload.items() if key in parameter_names}
+            mapped = {k: v for k, v in payload.items() if k in parameter_names}
+            if mapped:
+                return {**{n: _infer_default(n) for n in parameter_names}, **mapped}
         if isinstance(payload, (list, tuple)) and len(payload) == len(parameter_names):
-            return {parameter_names[index]: payload[index] for index in range(len(parameter_names))}
+            return {parameter_names[i]: payload[i] for i in range(len(parameter_names))}
+        if len(parameter_names) == 1:
+            return {parameter_names[0]: payload}
     except Exception:
         pass
 
-    raise ValueError(
-        "Unable to parse test input. Use Python-style literals like colors: [1,2,3] or {'colors': [1,2,3]}."
-    )
+    # ── Tier 5: smart defaults for whatever is still missing ──────────────
+    result = {**fuzzy}
+    for name in parameter_names:
+        if name not in result:
+            result[name] = _infer_default(name)
+    # Always succeed — worst case every param gets a sane default
+    return result
 
 
 def sanitize_code(code):
@@ -322,9 +431,17 @@ def main():
             raise ValueError(f"Could not find function {method_name}.")
         mode_label = method_name
 
-    missing = [name for name in parameter_names if name not in args_by_name]
-    if missing:
-        raise ValueError(f"Missing test input for parameters: {', '.join(missing)}")
+    # Track which params were inferred (not explicitly supplied by user)
+    supplied_keys = set()
+    for raw_line in (input_override or "").splitlines():
+        line = raw_line.strip()
+        for delim in ("=", ":"):
+            if delim in line:
+                k = line.partition(delim)[0].strip()
+                supplied_keys.add(k)
+                break
+    used_defaults = {name: _safe_repr(args_by_name[name])
+                    for name in parameter_names if name not in supplied_keys}
 
     ordered_args = [args_by_name[name] for name in parameter_names]
     lines = sanitized_code.splitlines()
@@ -373,6 +490,7 @@ def main():
         "parameterNames": parameter_names,
         "entryLabel": mode_label,
         "input": {key: _safe_repr(value) for key, value in args_by_name.items()},
+        "usedDefaults": used_defaults,
         "result": _safe_repr(result),
         "steps": steps,
     }

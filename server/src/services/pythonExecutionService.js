@@ -75,6 +75,7 @@ export function executePythonTrace({ code, inputOverride = '', patternDetected }
           entryLabel: parsed.entryLabel,
           parameterNames: parsed.parameterNames,
           result: parsed.result,
+          usedDefaults: parsed.usedDefaults || {},
         },
       });
     });
